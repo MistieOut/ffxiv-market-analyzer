@@ -475,6 +475,7 @@ Or paste item names in "Name x5" format for backward compatibility'></textarea>
 
     async function lookupAndAnalyze(items, server, minPrice, minVelocity) {
       const analyzed = [];
+      let processed = 0;
 
       for (const item of items) {
         let name = item.name;
@@ -511,43 +512,68 @@ Or paste item names in "Name x5" format for backward compatibility'></textarea>
           recommendation
         });
 
-        await new Promise(resolve => setTimeout(resolve, 50));
+        processed++;
+        showLoading(`Looking up prices... ${processed}/${items.length}`);
+
+        await new Promise(resolve => setTimeout(resolve, 150));
       }
 
       return analyzed.sort((a, b) => b.totalValue - a.totalValue);
     }
 
-    async function getItemName(itemId) {
-      try {
-        const response = await fetch(`https://xivapi.com/item/${itemId}`);
-        if (!response.ok) return null;
-        const data = await response.json();
-        return data.Name || null;
-      } catch (e) {
-        console.error(`Failed to fetch item ${itemId}:`, e);
-        return null;
-      }
-    }
-
-    async function getPriceFromUniversalis(itemName, server) {
-      try {
-        const response = await fetch(`https://universalis.app/api/v2/${server}?listings=1&query=${encodeURIComponent(itemName)}`);
-        if (!response.ok) return null;
-        const data = await response.json();
-
-        if (data.results && data.results.length > 0) {
-          const exact = data.results.find(r => r.name.toLowerCase() === itemName.toLowerCase());
-          if (exact && exact.listings && exact.listings.length > 0) {
-            const price = Math.round(exact.listings[0].pricePerUnit);
-            const velocity = exact.recentHistory ? (exact.recentHistory.length / 7) : 0;
-            return { price, velocity };
+    async function getItemName(itemId, retries = 2) {
+      for (let attempt = 0; attempt <= retries; attempt++) {
+        try {
+          const response = await fetch(`https://xivapi.com/item/${itemId}`);
+          if (!response.ok) {
+            if (attempt < retries) {
+              await new Promise(resolve => setTimeout(resolve, 200));
+              continue;
+            }
+            return null;
+          }
+          const data = await response.json();
+          return data.Name || null;
+        } catch (e) {
+          console.error(`Failed to fetch item ${itemId} (attempt ${attempt + 1}):`, e);
+          if (attempt < retries) {
+            await new Promise(resolve => setTimeout(resolve, 200));
           }
         }
-        return null;
-      } catch (e) {
-        console.error(`Failed to fetch price for ${itemName}:`, e);
-        return null;
       }
+      return null;
+    }
+
+    async function getPriceFromUniversalis(itemName, server, retries = 2) {
+      for (let attempt = 0; attempt <= retries; attempt++) {
+        try {
+          const response = await fetch(`https://universalis.app/api/v2/${server}?listings=1&query=${encodeURIComponent(itemName)}`);
+          if (!response.ok) {
+            if (attempt < retries) {
+              await new Promise(resolve => setTimeout(resolve, 200));
+              continue;
+            }
+            return null;
+          }
+          const data = await response.json();
+
+          if (data.results && data.results.length > 0) {
+            const exact = data.results.find(r => r.name.toLowerCase() === itemName.toLowerCase());
+            if (exact && exact.listings && exact.listings.length > 0) {
+              const price = Math.round(exact.listings[0].pricePerUnit);
+              const velocity = exact.recentHistory ? (exact.recentHistory.length / 7) : 0;
+              return { price, velocity };
+            }
+          }
+          return null;
+        } catch (e) {
+          console.error(`Failed to fetch price for ${itemName} (attempt ${attempt + 1}):`, e);
+          if (attempt < retries) {
+            await new Promise(resolve => setTimeout(resolve, 200));
+          }
+        }
+      }
+      return null;
     }
 
     function displayResults(items, minPrice) {
