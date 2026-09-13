@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>FFXIV Market Analyzer</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { 
+      background: var(--surface-0, #f5f5f5); 
+      color: var(--text-primary, #1a1a1a); 
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; 
+      font-size: 14px;
+      line-height: 1.6;
+    }
+    .container { 
+      max-width: 900px; 
+      margin: 0 auto; 
+      padding: 2rem 1rem;
+    }
+    header { margin-bottom: 2rem; }
+    h1 { font-size: 24px; font-weight: 600; margin-bottom: 0.5rem; }
+    .subtitle { color: var(--text-secondary, #666); font-size: 13px; }
+    .card { 
+      background: var(--surface-2, white); 
+      border: 0.5px solid var(--border, #ddd); 
+      border-radius: 8px; 
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+    }
+    .form-group { margin-bottom: 1.5rem; }
+    label { 
+      display: block; 
+      font-weight: 500; 
+      margin-bottom: 0.5rem; 
+      color: var(--text-primary, #1a1a1a);
+      font-size: 13px;
+    }
+    input, textarea, select { 
+      width: 100%; 
+      padding: 0.75rem;
+      border: 0.5px solid var(--border, #ddd);
+      border-radius: 6px;
+      font-size: 13px;
+      font-family: inherit;
+    }
+    input:focus, textarea:focus, select:focus {
+      outline: none;
+      border-color: var(--fill-accent, #0066cc);
+      box-shadow: 0 0 0 2px rgba(0, 102, 204, 0.1);
+    }
+    textarea { min-height: 120px; resize: vertical; font-family: monospace; }
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    @media (max-width: 600px) { .form-row { grid-template-columns: 1fr; } }
+    button { 
+      background: var(--fill-accent, #0066cc);
+      color: white;
+      border: none;
+      padding: 0.75rem 1.5rem;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: 500;
+      font-size: 13px;
+      transition: background 0.2s;
+    }
+    button:hover { background: var(--fill-accent-hover, #0052a3); }
+    button:active { transform: scale(0.98); }
+    .hint { font-size: 12px; color: var(--text-secondary, #666); margin-top: 0.5rem; }
+    .results { margin-top: 2rem; }
+    .metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin-bottom: 1.5rem; }
+    .metric { 
+      background: var(--surface-1, #fafafa); 
+      padding: 1rem; 
+      border-radius: 6px; 
+      text-align: center;
+      border: 0.5px solid var(--border, #ddd);
+    }
+    .metric-label { font-size: 12px; color: var(--text-secondary, #666); }
+    .metric-value { font-size: 18px; font-weight: 600; color: var(--text-primary, #1a1a1a); margin-top: 0.5rem; }
+    .metric-value.success { color: var(--text-success, #22863a); }
+    .metric-value.warning { color: var(--text-warning, #d4a82a); }
+    .table-wrapper { overflow-x: auto; }
+    table { 
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+    th { 
+      text-align: left;
+      padding: 0.75rem;
+      border-bottom: 0.5px solid var(--border-strong, #999);
+      font-weight: 600;
+      color: var(--text-secondary, #666);
+      background: var(--surface-1, #fafafa);
+      position: sticky;
+      top: 0;
+    }
+    td { 
+      padding: 0.75rem;
+      border-bottom: 0.5px solid var(--border, #ddd);
+    }
+    tr:hover { background: var(--fill-ghost-hover, #f9f9f9); }
+    .sell-badge { color: #22863a; font-weight: 500; }
+    .vendor-badge { color: #666; font-weight: 500; }
+    .unknown-badge { color: #d4a82a; font-weight: 500; }
+    .status-box { 
+      padding: 1rem; 
+      border-radius: 6px; 
+      margin-bottom: 1rem;
+      font-size: 13px;
+    }
+    .status-success { background: #f1f8e9; color: #22863a; border-left: 3px solid #22863a; }
+    .status-error { background: #ffebee; color: #c41c3b; border-left: 3px solid #c41c3b; }
+    .status-warning { background: #fff8e1; color: #856404; border-left: 3px solid #d4a82a; }
+    .loading { text-align: center; padding: 2rem; color: var(--text-secondary, #666); }
+    .spinner { 
+      display: inline-block;
+      width: 16px;
+      height: 16px;
+      border: 2px solid #ddd;
+      border-top-color: var(--fill-accent, #0066cc);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .num-right { text-align: right; }
+    .high-value { font-weight: 600; color: var(--text-accent, #0066cc); }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>FFXIV Market Analyzer</h1>
+      <p class="subtitle">Paste your Teamcraft inventory and find what's worth selling</p>
+    </header>
+
+    <div class="card">
+      <div class="form-group">
+        <label for="server">Data Center / Server</label>
+        <select id="server">
+          <option value="">Select your server...</option>
+        </select>
+        <p class="hint">Choose where you play to get accurate market prices</p>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label for="minPrice">Min price to list (gil)</label>
+          <input type="number" id="minPrice" value="500" min="0" />
+          <p class="hint">Items below this price go to vendor</p>
+        </div>
+        <div class="form-group">
+          <label for="minVelocity">Min sales/day (optional)</label>
+          <input type="number" id="minVelocity" value="0" min="0" />
+          <p class="hint">Filter out slow movers (0 = no filter)</p>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="inventory">Paste Teamcraft JSON export</label>
+        <textarea id="inventory" placeholder='Paste the JSON from Teamcraft like this:
+[{"id":2471,"amount":1},{"id":2594,"amount":46}]
+
+Or paste item names in "Name x5" format for backward compatibility'></textarea>
+        <p class="hint">Export from Teamcraft → Inventory → Copy as JSON, or use manual format</p>
+        <button onclick="analyzeInventory()" style="margin-top: 1rem;">Analyze Inventory</button>
+      </div>
+    </div>
+
+    <div id="results"></div>
+  </div>
+
+  <script>
+    const SERVERS = {
+      'Aether': ['Adamantoise', 'Cactuar', 'Faerie', 'Gilgamesh', 'Jenova', 'Midgardsormr', 'Sargatanas', 'Siren'],
+      'Primal': ['Behemoth', 'Excalibur', 'Exodus', 'Hyperion', 'Lamia', 'Leviathan', 'Ultros'],
+      'Crystal': ['Balmung', 'Brynhildr', 'Coeurl', 'Diabolos', 'Goblin', 'Malboro', 'Mateus', 'Zalera'],
+      'Dynamis': ['Cuchulainn', 'Golem', 'Halicarnassus', 'Kraken', 'Maduin', 'Rafale', 'Shiva', 'Twintania'],
+    };
+
+    const serverSelect = document.getElementById('server');
+    for (const [datacenter, servers] of Object.entries(SERVERS)) {
+      const group = document.createElement('optgroup');
+      group.label = datacenter;
+      servers.forEach(server => {
+        const option = document.createElement('option');
+        option.value = server;
+        option.textContent = server;
+        group.appendChild(option);
+      });
+      serverSelect.appendChild(group);
+    }
+
+    async function analyzeInventory() {
+      const inventory = document.getElementById('inventory').value.trim();
+      const server = document.getElementById('server').value;
+      const minPrice = parseInt(document.getElementById('minPrice').value) || 0;
+      const minVelocity = parseInt(document.getElementById('minVelocity').value) || 0;
+
+      if (!server) {
+        showError('Please select your server');
+        return;
+      }
+      if (!inventory) {
+        showError('Please paste your inventory');
+        return;
+      }
+
+      showLoading('Parsing inventory...');
+      
+      let items = [];
+      if (inventory.startsWith('[')) {
+        items = parseTeamcraftJSON(inventory);
+      } else {
+        items = parseManualFormat(inventory);
+      }
+
+      if (items.length === 0) {
+        showError('Could not parse any items. Check your format.');
+        return;
+      }
+
+      showLoading(`Looking up ${items.length} items from XIVAPI and Universalis...`);
+      
+      const analyzed = await lookupAndAnalyze(items, server, minPrice, minVelocity);
+      if (analyzed) {
+        displayResults(analyzed, minPrice);
+      }
+    }
+
+    function parseTeamcraftJSON(text) {
+      try {
+        const data = JSON.parse(text);
+        if (!Array.isArray(data)) {
+          showError('Invalid JSON format. Expected an array.');
+          return [];
+        }
+        return data.filter(item => item.id && item.amount).map(item => ({
+          id: item.id,
+          quantity: item.amount
+        }));
+      } catch (e) {
+        showError('Invalid JSON: ' + e.message);
+        return [];
+      }
+    }
+
+    function parseManualFormat(text) {
+      const lines = text.split('\n');
+      const items = [];
+      const pattern = /^(.+?)\s+x(\d+)\s*$/;
+      
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (!trimmed) continue;
+        
+        const match = trimmed.match(pattern);
+        if (match) {
+          const name = match[1].trim();
+          const qty = parseInt(match[2]);
+          if (name && qty > 0) {
+            items.push({ name, quantity: qty });
+          }
+        }
+      }
+      return items;
+    }
+
+    async function lookupAndAnalyze(items, server, minPrice, minVelocity) {
+      const analyzed = [];
+
+      for (const item of items) {
+        let name = item.name;
+        
+        if (item.id) {
+          name = await getItemName(item.id);
+          if (!name) {
+            console.warn(`Could not find name for item ID ${item.id}`);
+            continue;
+          }
+        }
+
+        const priceData = await getPriceFromUniversalis(name, server);
+        const price = priceData ? priceData.price : 0;
+        const velocity = priceData ? priceData.velocity : 0;
+
+        let recommendation = 'unknown';
+        if (!price) {
+          recommendation = 'unknown';
+        } else if (price < minPrice) {
+          recommendation = 'vendor';
+        } else if (minVelocity > 0 && velocity < minVelocity) {
+          recommendation = 'slow';
+        } else {
+          recommendation = 'sell';
+        }
+
+        analyzed.push({
+          name,
+          quantity: item.quantity,
+          unitPrice: price,
+          totalValue: price * item.quantity,
+          velocity,
+          recommendation
+        });
+
+        await new Promise(resolve => setTimeout(resolve, 50));
+      }
+
+      return analyzed.sort((a, b) => b.totalValue - a.totalValue);
+    }
+
+    async function getItemName(itemId) {
+      try {
+        const response = await fetch(`https://xivapi.com/item/${itemId}`);
+        if (!response.ok) return null;
+        const data = await response.json();
+        return data.Name || null;
+      } catch (e) {
+        console.error(`Failed to fetch item ${itemId}:`, e);
+        return null;
+      }
+    }
+
+    async function getPriceFromUniversalis(itemName, server) {
+      try {
+        const response = await fetch(`https://universalis.app/api/v2/${server}?listings=1&query=${encodeURIComponent(itemName)}`);
+        if (!response.ok) return null;
+        const data = await response.json();
+
+        if (data.results && data.results.length > 0) {
+          const exact = data.results.find(r => r.name.toLowerCase() === itemName.toLowerCase());
+          if (exact && exact.listings && exact.listings.length > 0) {
+            const price = Math.round(exact.listings[0].pricePerUnit);
+            const velocity = exact.recentHistory ? (exact.recentHistory.length / 7) : 0;
+            return { price, velocity };
+          }
+        }
+        return null;
+      } catch (e) {
+        console.error(`Failed to fetch price for ${itemName}:`, e);
+        return null;
+      }
+    }
+
+    function displayResults(items, minPrice) {
+      const results = document.getElementById('results');
+      
+      const toSell = items.filter(i => i.recommendation === 'sell');
+      const slow = items.filter(i => i.recommendation === 'slow');
+      const toVendor = items.filter(i => i.recommendation === 'vendor');
+      const unknown = items.filter(i => i.recommendation === 'unknown');
+
+      const totalValue = items.reduce((sum, i) => sum + i.totalValue, 0);
+      const sellValue = toSell.reduce((sum, i) => sum + i.totalValue, 0);
+
+      let html = `
+        <div class="results">
+          <div class="status-success">
+            ✓ Analysis complete! ${items.length} items found
+          </div>
+
+          <div class="metrics">
+            <div class="metric">
+              <div class="metric-label">Total Inventory Value</div>
+              <div class="metric-value">${Math.round(totalValue).toLocaleString()} gil</div>
+            </div>
+            <div class="metric">
+              <div class="metric-label">Worth Selling</div>
+              <div class="metric-value success">${toSell.length} items</div>
+            </div>
+            <div class="metric">
+              <div class="metric-label">Sell Value</div>
+              <div class="metric-value success">${Math.round(sellValue).toLocaleString()} gil</div>
+            </div>
+            <div class="metric">
+              <div class="metric-label">To Vendor</div>
+              <div class="metric-value">${toVendor.length} items</div>
+            </div>
+          </div>
+
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr>
+                  <th>Item</th>
+                  <th class="num-right">Qty</th>
+                  <th class="num-right">Unit Price</th>
+                  <th class="num-right">Total Value</th>
+                  <th class="num-right">Sales/Day</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody>
+      `;
+
+      items.forEach(item => {
+        const actionClass = item.recommendation === 'sell' ? 'sell-badge' : 
+                           item.recommendation === 'slow' ? 'warning' : 
+                           item.recommendation === 'vendor' ? 'vendor-badge' : 'unknown-badge';
+        const actionText = item.recommendation === 'sell' ? 'List on MB' :
+                          item.recommendation === 'slow' ? 'Slow mover' :
+                          item.recommendation === 'vendor' ? 'Vendor' : 'Not found';
+        const priceText = item.unitPrice ? `${Math.round(item.unitPrice).toLocaleString()}` : '—';
+        const totalClass = item.totalValue >= 10000 ? 'high-value' : '';
+        const velocityText = item.velocity ? `${Math.round(item.velocity)}` : '—';
+
+        html += `
+          <tr>
+            <td>${item.name}</td>
+            <td class="num-right">${item.quantity}</td>
+            <td class="num-right">${priceText}</td>
+            <td class="num-right ${totalClass}">${Math.round(item.totalValue).toLocaleString()}</td>
+            <td class="num-right">${velocityText}</td>
+            <td><span class="${actionClass}">${actionText}</span></td>
+          </tr>
+        `;
+      });
+
+      html += `
+              </tbody>
+            </table>
+          </div>
+      `;
+
+      if (unknown.length > 0) {
+        html += `
+          <div class="status-warning" style="margin-top: 1.5rem;">
+            <strong>⚠️ ${unknown.length} item(s) not found:</strong><br/>
+            ${unknown.map(i => i.name).join(', ')}<br/>
+            <small>Check spelling or these items may not be marketable.</small>
+          </div>
+        `;
+      }
+
+      if (slow.length > 0) {
+        html += `
+          <div class="status-warning" style="margin-top: 1rem;">
+            <strong>ℹ️ ${slow.length} item(s) are slow movers</strong><br/>
+            These sell, but below your velocity threshold. Listing them may take time.
+          </div>
+        `;
+      }
+
+      html += `</div>`;
+      results.innerHTML = html;
+    }
+
+    function showLoading(msg) {
+      document.getElementById('results').innerHTML = `
+        <div class="loading">
+          <div class="spinner"></div>
+          <p style="margin-top: 1rem;">${msg}</p>
+        </div>
+      `;
+    }
+
+    function showError(msg) {
+      document.getElementById('results').innerHTML = `
+        <div class="status-error">${msg}</div>
+      `;
+    }
+  </script>
+</body>
+</html>
