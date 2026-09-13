@@ -5,13 +5,49 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>FFXIV Market Analyzer</title>
   <style>
+    :root {
+      --bg-light: #f5f5f5;
+      --bg-dark: #1a1a1a;
+      --surface-light-2: white;
+      --surface-dark-2: #2a2a2a;
+      --surface-light-1: #fafafa;
+      --surface-dark-1: #333;
+      --text-light-primary: #1a1a1a;
+      --text-dark-primary: #e0e0e0;
+      --text-light-secondary: #666;
+      --text-dark-secondary: #999;
+      --border-light: #ddd;
+      --border-dark: #444;
+      --accent: #0066cc;
+      --accent-hover: #0052a3;
+    }
+
     * { margin: 0; padding: 0; box-sizing: border-box; }
+    
     body { 
-      background: var(--surface-0, #f5f5f5); 
-      color: var(--text-primary, #1a1a1a); 
+      background: var(--bg-light); 
+      color: var(--text-light-primary); 
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; 
       font-size: 14px;
       line-height: 1.6;
+      transition: background 0.3s, color 0.3s;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      body {
+        background: var(--bg-dark);
+        color: var(--text-dark-primary);
+      }
+    }
+
+    body.dark-mode {
+      background: var(--bg-dark);
+      color: var(--text-dark-primary);
+    }
+
+    body.light-mode {
+      background: var(--bg-light);
+      color: var(--text-light-primary);
     }
     .container { 
       max-width: 900px; 
@@ -20,40 +56,71 @@
     }
     header { margin-bottom: 2rem; }
     h1 { font-size: 24px; font-weight: 600; margin-bottom: 0.5rem; }
-    .subtitle { color: var(--text-secondary, #666); font-size: 13px; }
+    .subtitle { 
+      color: var(--text-light-secondary); 
+      font-size: 13px;
+    }
+
+    body.dark-mode .subtitle {
+      color: var(--text-dark-secondary);
+    }
     .card { 
-      background: var(--surface-2, white); 
-      border: 0.5px solid var(--border, #ddd); 
+      background: var(--surface-light-2);
+      border: 0.5px solid var(--border-light); 
       border-radius: 8px; 
       padding: 1.5rem;
       margin-bottom: 1.5rem;
+      transition: background 0.3s, border-color 0.3s;
     }
+
+    body.dark-mode .card {
+      background: var(--surface-dark-2);
+      border-color: var(--border-dark);
+    }
+
     .form-group { margin-bottom: 1.5rem; }
     label { 
       display: block; 
       font-weight: 500; 
       margin-bottom: 0.5rem; 
-      color: var(--text-primary, #1a1a1a);
+      color: var(--text-light-primary);
       font-size: 13px;
     }
+
+    body.dark-mode label {
+      color: var(--text-dark-primary);
+    }
+
     input, textarea, select { 
       width: 100%; 
       padding: 0.75rem;
-      border: 0.5px solid var(--border, #ddd);
+      border: 0.5px solid var(--border-light);
       border-radius: 6px;
       font-size: 13px;
       font-family: inherit;
+      background: var(--surface-light-2);
+      color: var(--text-light-primary);
+      transition: background 0.3s, color 0.3s, border-color 0.3s;
     }
+
+    body.dark-mode input,
+    body.dark-mode textarea,
+    body.dark-mode select {
+      background: var(--surface-dark-1);
+      color: var(--text-dark-primary);
+      border-color: var(--border-dark);
+    }
+
     input:focus, textarea:focus, select:focus {
       outline: none;
-      border-color: var(--fill-accent, #0066cc);
+      border-color: var(--accent);
       box-shadow: 0 0 0 2px rgba(0, 102, 204, 0.1);
     }
     textarea { min-height: 120px; resize: vertical; font-family: monospace; }
     .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
     @media (max-width: 600px) { .form-row { grid-template-columns: 1fr; } }
     button { 
-      background: var(--fill-accent, #0066cc);
+      background: var(--accent);
       color: white;
       border: none;
       padding: 0.75rem 1.5rem;
@@ -63,20 +130,74 @@
       font-size: 13px;
       transition: background 0.2s;
     }
-    button:hover { background: var(--fill-accent-hover, #0052a3); }
+    button:hover { background: var(--accent-hover); }
     button:active { transform: scale(0.98); }
-    .hint { font-size: 12px; color: var(--text-secondary, #666); margin-top: 0.5rem; }
+    
+    .hint { 
+      font-size: 12px; 
+      color: var(--text-light-secondary); 
+      margin-top: 0.5rem;
+    }
+
+    body.dark-mode .hint {
+      color: var(--text-dark-secondary);
+    }
+
+    .theme-toggle {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background: var(--surface-light-2);
+      border: 0.5px solid var(--border-light);
+      border-radius: 6px;
+      padding: 8px 12px;
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 500;
+      transition: background 0.3s, border-color 0.3s;
+      z-index: 1000;
+    }
+
+    body.dark-mode .theme-toggle {
+      background: var(--surface-dark-2);
+      border-color: var(--border-dark);
+      color: var(--text-dark-primary);
+    }
     .results { margin-top: 2rem; }
     .metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin-bottom: 1.5rem; }
     .metric { 
-      background: var(--surface-1, #fafafa); 
+      background: var(--surface-light-1);
       padding: 1rem; 
       border-radius: 6px; 
       text-align: center;
-      border: 0.5px solid var(--border, #ddd);
+      border: 0.5px solid var(--border-light);
+      transition: background 0.3s, border-color 0.3s;
     }
-    .metric-label { font-size: 12px; color: var(--text-secondary, #666); }
-    .metric-value { font-size: 18px; font-weight: 600; color: var(--text-primary, #1a1a1a); margin-top: 0.5rem; }
+
+    body.dark-mode .metric {
+      background: var(--surface-dark-1);
+      border-color: var(--border-dark);
+    }
+
+    .metric-label { 
+      font-size: 12px; 
+      color: var(--text-light-secondary);
+    }
+
+    body.dark-mode .metric-label {
+      color: var(--text-dark-secondary);
+    }
+
+    .metric-value { 
+      font-size: 18px; 
+      font-weight: 600; 
+      color: var(--text-light-primary); 
+      margin-top: 0.5rem;
+    }
+
+    body.dark-mode .metric-value {
+      color: var(--text-dark-primary);
+    }
     .metric-value.success { color: var(--text-success, #22863a); }
     .metric-value.warning { color: var(--text-warning, #d4a82a); }
     .table-wrapper { overflow-x: auto; }
@@ -88,18 +209,38 @@
     th { 
       text-align: left;
       padding: 0.75rem;
-      border-bottom: 0.5px solid var(--border-strong, #999);
+      border-bottom: 0.5px solid var(--border-light);
       font-weight: 600;
-      color: var(--text-secondary, #666);
-      background: var(--surface-1, #fafafa);
+      color: var(--text-light-secondary);
+      background: var(--surface-light-1);
       position: sticky;
       top: 0;
+      transition: background 0.3s, border-color 0.3s, color 0.3s;
     }
+
+    body.dark-mode th {
+      border-bottom-color: var(--border-dark);
+      color: var(--text-dark-secondary);
+      background: var(--surface-dark-1);
+    }
+
     td { 
       padding: 0.75rem;
-      border-bottom: 0.5px solid var(--border, #ddd);
+      border-bottom: 0.5px solid var(--border-light);
+      transition: background 0.3s, border-color 0.3s;
     }
-    tr:hover { background: var(--fill-ghost-hover, #f9f9f9); }
+
+    body.dark-mode td {
+      border-bottom-color: var(--border-dark);
+    }
+
+    tr:hover { 
+      background: var(--surface-light-1);
+    }
+
+    body.dark-mode tr:hover {
+      background: var(--surface-dark-1);
+    }
     .sell-badge { color: #22863a; font-weight: 500; }
     .vendor-badge { color: #666; font-weight: 500; }
     .unknown-badge { color: #d4a82a; font-weight: 500; }
@@ -109,9 +250,38 @@
       margin-bottom: 1rem;
       font-size: 13px;
     }
-    .status-success { background: #f1f8e9; color: #22863a; border-left: 3px solid #22863a; }
-    .status-error { background: #ffebee; color: #c41c3b; border-left: 3px solid #c41c3b; }
-    .status-warning { background: #fff8e1; color: #856404; border-left: 3px solid #d4a82a; }
+    .status-success { 
+      background: #f1f8e9; 
+      color: #22863a; 
+      border-left: 3px solid #22863a;
+    }
+
+    body.dark-mode .status-success {
+      background: rgba(34, 134, 58, 0.15);
+      color: #66bb6a;
+    }
+
+    .status-error { 
+      background: #ffebee; 
+      color: #c41c3b; 
+      border-left: 3px solid #c41c3b;
+    }
+
+    body.dark-mode .status-error {
+      background: rgba(196, 28, 59, 0.15);
+      color: #ef5350;
+    }
+
+    .status-warning { 
+      background: #fff8e1; 
+      color: #856404; 
+      border-left: 3px solid #d4a82a;
+    }
+
+    body.dark-mode .status-warning {
+      background: rgba(212, 168, 42, 0.15);
+      color: #ffd54f;
+    }
     .loading { text-align: center; padding: 2rem; color: var(--text-secondary, #666); }
     .spinner { 
       display: inline-block;
@@ -128,6 +298,8 @@
   </style>
 </head>
 <body>
+  <button class="theme-toggle" id="themeToggle">🌙 Dark</button>
+  
   <div class="container">
     <header>
       <h1>FFXIV Market Analyzer</h1>
@@ -171,6 +343,41 @@ Or paste item names in "Name x5" format for backward compatibility'></textarea>
   </div>
 
   <script>
+    // Dark mode toggle
+    const themeToggle = document.getElementById('themeToggle');
+    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    const savedTheme = localStorage.getItem('theme');
+    
+    function initTheme() {
+      let isDark = savedTheme ? savedTheme === 'dark' : prefersDark;
+      if (isDark) {
+        document.body.classList.add('dark-mode');
+        document.body.classList.remove('light-mode');
+        themeToggle.textContent = '☀️ Light';
+      } else {
+        document.body.classList.add('light-mode');
+        document.body.classList.remove('dark-mode');
+        themeToggle.textContent = '🌙 Dark';
+      }
+    }
+    
+    themeToggle.addEventListener('click', () => {
+      const isDark = document.body.classList.contains('dark-mode');
+      if (isDark) {
+        document.body.classList.remove('dark-mode');
+        document.body.classList.add('light-mode');
+        localStorage.setItem('theme', 'light');
+        themeToggle.textContent = '🌙 Dark';
+      } else {
+        document.body.classList.add('dark-mode');
+        document.body.classList.remove('light-mode');
+        localStorage.setItem('theme', 'dark');
+        themeToggle.textContent = '☀️ Light';
+      }
+    });
+    
+    initTheme();
+
     const SERVERS = {
       'Aether': ['Adamantoise', 'Cactuar', 'Faerie', 'Gilgamesh', 'Jenova', 'Midgardsormr', 'Sargatanas', 'Siren'],
       'Primal': ['Behemoth', 'Excalibur', 'Exodus', 'Hyperion', 'Lamia', 'Leviathan', 'Ultros'],
